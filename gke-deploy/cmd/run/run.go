@@ -58,6 +58,8 @@ type options struct {
 	verbose             bool
 	waitTimeout         time.Duration
 	recursive           bool
+	branch              string
+	acceptedBranches    []string
 }
 
 // NewRunCommand creates the `gke-deploy run` subcommand.
@@ -77,6 +79,8 @@ func NewRunCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&options.appName, "app", "a", "", "Application name of the Kubernetes deployment.")
+	cmd.Flags().StringVarP(&options.branch, "branch", "b", "", "Current branch (for conditional deployments).")
+	cmd.Flags().StringSliceVarP(&options.acceptedBranches, "branches", "B", nil, "List of branches to accept deployments for")
 	cmd.Flags().StringVarP(&options.appVersion, "version", "v", "", "Version of the Kubernetes deployment.")
 	cmd.Flags().StringVarP(&options.filename, "filename", "f", "", "Local or GCS path to configuration file or directory of configuration files to use to create Kubernetes objects (file or files in directory must end in \".yml\" or \".yaml\"). Prefix this value with \"gs://\" to indicate a GCS path. If this field is not provided, a Deployment (with image provided by --image) and a HorizontalPodAutoscaler are created as suggested based configs. The application's name is inferred from the image name's suffix.")
 	cmd.Flags().StringVarP(&options.clusterLocation, "location", "l", "", "Region/zone of GKE cluster to deploy to.")
@@ -100,6 +104,14 @@ func NewRunCommand() *cobra.Command {
 func run(_ *cobra.Command, options *options) error {
 	ctx := context.Background()
 
+	// if we have a branch and branches set, compare them and if branch isn't in branches, gently exit, since this is not deployable.
+	if options.branch != "" && options.acceptedBranches != nil {
+		found, _ := common.BranchInBranches(options.branch, options.acceptedBranches)
+		if !found {
+			fmt.Println("Safely Exiting since this is not a deployment branch")
+			return nil
+		}
+	}
 	var im name.Reference
 	if options.image != "" {
 		ref, err := name.ParseReference(options.image)

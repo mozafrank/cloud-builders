@@ -15,6 +15,19 @@ import (
 	applicationsv1beta1 "github.com/kubernetes-sigs/application/pkg/apis/app/v1beta1"
 )
 
+// BranchInBranches tests a branch to see if it's in a slice of branches
+// and returns true if so. This is used for conditional deployments.
+// If this doesn't match, gke-deploy will quietly exit so you can
+// apply your CI for all branches but your CD for certain branches.
+func BranchInBranches(branch string, branches []string) (bool, error) {
+	for _, item := range branches {
+		if item == branch {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // CreateApplicationLinksListFromEqualDelimitedStrings creates a []applicationsv1beta1.Link from a slice
 // of "="-delimited strings, where the key is set as Description and the value is set as URL.
 func CreateApplicationLinksListFromEqualDelimitedStrings(applicationLinks []string) ([]applicationsv1beta1.Link, error) {
